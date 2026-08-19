@@ -31,11 +31,13 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase) {
 
     CREATE TABLE IF NOT EXISTS notes (
       id TEXT PRIMARY KEY,
+      cloudId TEXT,
       userId TEXT NOT NULL,
       title TEXT NOT NULL,
       content TEXT,
       category TEXT DEFAULT 'general',
       isFavorite INTEGER DEFAULT 0,
+      syncState TEXT NOT NULL DEFAULT 'synced',
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
       updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
@@ -128,6 +130,19 @@ async function migrate(database: SQLite.SQLiteDatabase) {
       ALTER TABLE users_new RENAME TO users;
       COMMIT;
       PRAGMA foreign_keys = ON;
+    `);
+  }
+
+  // v2 -> v3: notes gained cloudId + syncState for cloud syncing.
+  // Existing rows are marked 'pending' so they upload to the cloud on the
+  // next sync instead of being treated as already-synced.
+  const notesColumns = await database.getAllAsync<{ name: string }>(
+    "PRAGMA table_info(notes)"
+  );
+  if (!notesColumns.some((column) => column.name === "syncState")) {
+    await database.execAsync(`
+      ALTER TABLE notes ADD COLUMN cloudId TEXT;
+      ALTER TABLE notes ADD COLUMN syncState TEXT NOT NULL DEFAULT 'pending';
     `);
   }
 }

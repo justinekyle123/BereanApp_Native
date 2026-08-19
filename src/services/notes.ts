@@ -13,6 +13,12 @@ export interface Note {
   updatedAt: string;
 }
 
+// A row in the local notes table (SQLite)
+interface LocalNote extends Note {
+  cloudId: string | null;
+  syncState: "synced" | "pending" | "pending_delete";
+}
+
 // Shape of a row in the Supabase `notes` table
 interface CloudNote {
   id: string;
@@ -25,8 +31,21 @@ interface CloudNote {
   updated_at: string;
 }
 
+function mapLocalNote(note: LocalNote): Note {
+  return {
+    id: note.id,
+    userId: note.userId,
+    title: note.title,
+    content: note.content,
+    category: note.category,
+    isFavorite: note.isFavorite,
+    createdAt: note.createdAt,
+    updatedAt: note.updatedAt,
+  };
+}
+
 // ============================================================
-// Local (SQLite)
+// Local (SQLite) — the on-device cache
 // ============================================================
 
 // Ensure a users row exists for the given user (or a "local" row when signed
@@ -58,89 +77,129 @@ export async function ensureUserRow(user: AuthUser | null): Promise<string> {
 
 async function getNotesLocal(userId: string): Promise<Note[]> {
   const db = await getDatabase();
-  return db.getAllAsync<Note>(
-    `SELECT * FROM notes WHERE userId = ?
+  const rows = await db.getAllAsync<LocalNote>(
+    `SELECT * FROM notes
+     WHERE userId = ? AND syncState != 'pending_delete'
      ORDER BY datetime(updatedAt) DESC, datetime(createdAt) DESC`,
     [userId]
   );
+  return rows.map(mapLocalNote);
 }
 
-async function createNoteLocal(
+async function getLocalNote(id: string): Promise<LocalNote | null> {
+  const db = await getDatabase();
+  return db.getFirstAsync<LocalNote>(`SELECT * FROM notes WHERE id = ?`, [id]);
+}
+
+// Replace the user's synced cache rows with the latest cloud rows.
+// Rows that are still pending (created/edited offline) are kept so they
+// aren't wiped before they can be uploaded.
+async function refreshCacheFromCloud(
   userId: string,
-  title: string,
-  content: string
+  cloudNotes: CloudNote[]
 ): Promise<void> {
   const db = await getDatabase();
-  await db.runAsync(
-    `INSERT INTO notes (id, userId, title, content, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-    [Date.now().toString(), userId, title, content]
-  );
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      `DELETE FROM notes WHERE userId = ? AND syncState = 'synced'`,
+      [userId]
+    );
+    for (const note of cloudNotes) {
+      await db.runAsync(
+        `INSERT INTO notes (id, cloudId, userId, title, content, category, isFavorite, syncState, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'synced', ?, ?)`,
+        [
+          note.id,
+          note.id,
+          userId,
+          note.title,
+          note.content ?? "",
+          note.category,
+          note.is_favorite ? 1 : 0,
+          note.created_at,
+          note.updated_at,
+        ]
+      );
+    }
+  });
 }
 
-async function updateNoteLocal(
-  id: string,
-  title: string,
-  content: string
-): Promise<void> {
+// Upload offline changes to Supabase (called whenever a cloud fetch succeeds).
+async function pushPending(user: AuthUser): Promise<void> {
   const db = await getDatabase();
-  await db.runAsync(
-    `UPDATE notes SET title = ?, content = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
-    [title, content, id]
+  const pending = await db.getAllAsync<LocalNote>(
+    `SELECT * FROM notes WHERE userId = ? AND syncState != 'synced'`,
+    [user.uid]
   );
-}
 
-async function deleteNoteLocal(id: string): Promise<void> {
-  const db = await getDatabase();
-  await db.runAsync(`DELETE FROM notes WHERE id = ?`, [id]);
+  for (const note of pending) {
+    if (note.syncState === "pending_delete") {
+      if (note.cloudId) {
+        const { error } = await supabase
+          .from("notes")
+          .delete()
+          .eq("id", note.cloudId)
+          .eq("user_id", user.uid);
+        if (error) continue; // retry on the next sync
+      }
+      await db.runAsync(`DELETE FROM notes WHERE id = ?`, [note.id]);
+      continue;
+    }
+
+    if (note.cloudId) {
+      // Previously synced — push the edit.
+      const { error } = await supabase
+        .from("notes")
+        .update({ title: note.title, content: note.content || null })
+        .eq("id", note.cloudId)
+        .eq("user_id", user.uid);
+      if (error) continue;
+      await db.runAsync(
+        `UPDATE notes SET syncState = 'synced', updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
+        [note.id]
+      );
+    } else {
+      // Created offline — insert and remember the cloud id.
+      const { data, error } = await supabase
+        .from("notes")
+        .insert({
+          user_id: user.uid,
+          title: note.title,
+          content: note.content || null,
+          is_favorite: note.isFavorite === 1,
+        })
+        .select("id")
+        .single();
+      if (error || !data) continue;
+      await db.runAsync(
+        `UPDATE notes SET cloudId = ?, syncState = 'synced' WHERE id = ?`,
+        [data.id, note.id]
+      );
+    }
+  }
 }
 
 // ============================================================
-// Cloud (Supabase)
-// ============================================================
-
-// Checked once per session so a missing/unreachable `notes` table
-// degrades to the local store instead of erroring on every call.
-let cloudChecked = false;
-let cloudReady = false;
-
-async function isCloudReady(): Promise<boolean> {
-  if (cloudChecked) return cloudReady;
-  const { error } = await supabase.from("notes").select("id").limit(1);
-  cloudReady = !error;
-  cloudChecked = true;
-  return cloudReady;
-}
-
-function mapCloudNote(note: CloudNote): Note {
-  return {
-    id: note.id,
-    userId: note.user_id,
-    title: note.title,
-    content: note.content ?? "",
-    category: note.category,
-    isFavorite: note.is_favorite ? 1 : 0,
-    createdAt: note.created_at,
-    updatedAt: note.updated_at,
-  };
-}
-
-// ============================================================
-// Public API — cloud-first, falls back to local storage
+// Public API — offline-first: read from the cache, sync to the cloud
 // ============================================================
 
 export async function getNotes(user: AuthUser | null): Promise<Note[]> {
-  if (user && (await isCloudReady())) {
-    const { data, error } = await supabase
-      .from("notes")
-      .select("*")
-      .eq("user_id", user.uid)
-      .order("updated_at", { ascending: false });
+  if (user) {
+    try {
+      const { data, error } = await supabase
+        .from("notes")
+        .select("*")
+        .eq("user_id", user.uid)
+        .order("updated_at", { ascending: false });
+      if (error) throw error;
 
-    if (!error && data) {
-      return (data as CloudNote[]).map(mapCloudNote);
+      await refreshCacheFromCloud(user.uid, (data ?? []) as CloudNote[]);
+      await pushPending(user);
+    } catch {
+      // Offline or schema not applied — fall back to the local cache.
     }
   }
+
   return getNotesLocal(await ensureUserRow(user));
 }
 
@@ -149,16 +208,41 @@ export async function createNote(
   title: string,
   content: string
 ): Promise<void> {
-  if (user && (await isCloudReady())) {
-    const { error } = await supabase.from("notes").insert({
-      user_id: user.uid,
-      title,
-      content: content || null,
-      is_favorite: false,
-    });
-    if (!error) return;
+  const db = await getDatabase();
+  const userId = await ensureUserRow(user);
+  const now = new Date().toISOString();
+
+  if (user) {
+    try {
+      const { data, error } = await supabase
+        .from("notes")
+        .insert({
+          user_id: user.uid,
+          title,
+          content: content || null,
+          is_favorite: false,
+        })
+        .select("id")
+        .single();
+
+      if (!error && data) {
+        await db.runAsync(
+          `INSERT INTO notes (id, cloudId, userId, title, content, category, isFavorite, syncState, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, 'general', 0, 'synced', ?, ?)`,
+          [data.id, data.id, userId, title, content, now, now]
+        );
+        return;
+      }
+    } catch {
+      // Fall through to the local (pending) save.
+    }
   }
-  await createNoteLocal(await ensureUserRow(user), title, content);
+
+  await db.runAsync(
+    `INSERT INTO notes (id, cloudId, userId, title, content, category, isFavorite, syncState, createdAt, updatedAt)
+     VALUES (?, NULL, ?, ?, ?, 'general', 0, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+    [Date.now().toString(), userId, title, content]
+  );
 }
 
 export async function updateNote(
@@ -167,28 +251,64 @@ export async function updateNote(
   title: string,
   content: string
 ): Promise<void> {
-  if (user && (await isCloudReady())) {
-    const { error } = await supabase
-      .from("notes")
-      .update({ title, content: content || null })
-      .eq("id", id)
-      .eq("user_id", user.uid);
-    if (!error) return;
+  const db = await getDatabase();
+  const local = await getLocalNote(id);
+  if (!local) return;
+
+  if (user && local.cloudId) {
+    try {
+      const { error } = await supabase
+        .from("notes")
+        .update({ title, content: content || null })
+        .eq("id", local.cloudId)
+        .eq("user_id", user.uid);
+      if (!error) {
+        await db.runAsync(
+          `UPDATE notes SET title = ?, content = ?, syncState = 'synced', updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
+          [title, content, id]
+        );
+        return;
+      }
+    } catch {
+      // Fall through — save locally and sync later.
+    }
   }
-  await updateNoteLocal(id, title, content);
+
+  await db.runAsync(
+    `UPDATE notes SET title = ?, content = ?, syncState = 'pending', updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
+    [title, content, id]
+  );
 }
 
 export async function deleteNote(
   user: AuthUser | null,
   id: string
 ): Promise<void> {
-  if (user && (await isCloudReady())) {
-    const { error } = await supabase
-      .from("notes")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", user.uid);
-    if (!error) return;
+  const db = await getDatabase();
+  const local = await getLocalNote(id);
+  if (!local) return;
+
+  if (user && local.cloudId) {
+    try {
+      const { error } = await supabase
+        .from("notes")
+        .delete()
+        .eq("id", local.cloudId)
+        .eq("user_id", user.uid);
+      if (!error) {
+        await db.runAsync(`DELETE FROM notes WHERE id = ?`, [id]);
+        return;
+      }
+    } catch {
+      // Fall through — mark for deletion and sync later.
+    }
   }
-  await deleteNoteLocal(id);
+
+  if (local.cloudId) {
+    // Delete on the cloud on the next sync.
+    await db.runAsync(`UPDATE notes SET syncState = 'pending_delete' WHERE id = ?`, [id]);
+  } else {
+    // Never synced — just remove it locally.
+    await db.runAsync(`DELETE FROM notes WHERE id = ?`, [id]);
+  }
 }

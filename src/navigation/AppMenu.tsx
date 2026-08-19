@@ -7,6 +7,7 @@ import React, {
   useState,
 } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   Modal,
@@ -18,6 +19,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { NavigationProp, ParamListBase } from "@react-navigation/native";
 import { logout } from "../services/auth";
+import { useAuth } from "../hooks/useAuth";
 import { TabParamList } from "./types";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
@@ -59,7 +61,23 @@ interface AppMenuProps {
   onClose: () => void;
 }
 
+function getInitials(name?: string | null, email?: string | null): string {
+  if (name) {
+    return name
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((word) => word[0])
+      .join("")
+      .toUpperCase();
+  }
+  if (email) return email[0].toUpperCase();
+  return "B";
+}
+
 function AppMenu({ navigation, visible, onClose }: AppMenuProps) {
+  const { user } = useAuth();
+  const [signingOut, setSigningOut] = useState(false);
   const { width } = useWindowDimensions();
   const panelWidth = width * 0.78;
   const translateX = useRef(new Animated.Value(-panelWidth)).current;
@@ -88,13 +106,23 @@ function AppMenu({ navigation, visible, onClose }: AppMenuProps) {
   };
 
   const handleLogout = async () => {
+    // Close first — the auth gate switches to the sign-in screen on its own.
+    onClose();
+    setSigningOut(true);
     try {
       await logout();
-      onClose();
-      navigation?.navigate("MainTabs", { screen: "Home" });
     } catch (error) {
       Alert.alert("Error", "Failed to logout");
+    } finally {
+      setSigningOut(false);
     }
+  };
+
+  const confirmLogout = () => {
+    Alert.alert("Sign out", "Are you sure you want to sign out?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Sign Out", style: "destructive", onPress: handleLogout },
+    ]);
   };
 
   return (
@@ -140,6 +168,26 @@ function AppMenu({ navigation, visible, onClose }: AppMenuProps) {
                 <Ionicons name="close" size={18} color="#374151" />
               </TouchableOpacity>
             </View>
+
+            {/* Signed-in user */}
+            <View className="mt-4 flex-row items-center gap-3 rounded-xl bg-gray-50 p-3">
+              <View className="h-10 w-10 items-center justify-center rounded-full bg-blue-600">
+                <Text className="text-sm font-bold text-white">
+                  {getInitials(user?.displayName, user?.email)}
+                </Text>
+              </View>
+              <View className="flex-1">
+                <Text
+                  className="text-[15px] font-semibold text-gray-900"
+                  numberOfLines={1}
+                >
+                  {user?.displayName ?? "Guest"}
+                </Text>
+                <Text className="text-xs text-gray-500" numberOfLines={1}>
+                  {user?.email ?? "Not signed in"}
+                </Text>
+              </View>
+            </View>
           </View>
 
           {/* Menu items */}
@@ -169,12 +217,19 @@ function AppMenu({ navigation, visible, onClose }: AppMenuProps) {
           {/* Logout */}
           <View className="border-t border-gray-100 px-3 py-3">
             <TouchableOpacity
-              onPress={handleLogout}
+              onPress={confirmLogout}
+              disabled={signingOut}
               activeOpacity={0.7}
               className="flex-row items-center gap-3 rounded-xl px-3 py-3.5"
             >
-              <Ionicons name="log-out-outline" size={22} color="#dc2626" />
-              <Text className="text-[15px] font-semibold text-red-600">Logout</Text>
+              {signingOut ? (
+                <ActivityIndicator size="small" color="#dc2626" />
+              ) : (
+                <Ionicons name="log-out-outline" size={22} color="#dc2626" />
+              )}
+              <Text className="text-[15px] font-semibold text-red-600">
+                {signingOut ? "Signing out..." : "Logout"}
+              </Text>
             </TouchableOpacity>
           </View>
         </Animated.View>

@@ -111,7 +111,7 @@ function Root() {
     return (
       <>
         <AuthScreen />
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
       </>
     );
   }
