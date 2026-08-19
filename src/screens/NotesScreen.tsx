@@ -18,7 +18,6 @@ import {
   Note,
   createNote,
   deleteNote,
-  ensureUserRow,
   getNotes,
   updateNote,
 } from "../services/notes";
@@ -37,9 +36,12 @@ const cardShadow = {
   elevation: 2,
 };
 
-// SQLite timestamps are "YYYY-MM-DD HH:MM:SS" in UTC
+// SQLite timestamps are "YYYY-MM-DD HH:MM:SS" in UTC;
+// Supabase returns ISO 8601 strings.
 function formatDate(value: string): string {
-  const date = new Date(value.replace(" ", "T") + "Z");
+  const date = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(value)
+    ? new Date(value.replace(" ", "T") + "Z")
+    : new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString(undefined, {
     month: "short",
@@ -56,8 +58,7 @@ export function NotesScreen() {
   const [saving, setSaving] = useState(false);
 
   const loadNotes = useCallback(async () => {
-    const userId = await ensureUserRow(user);
-    setNotes(await getNotes(userId));
+    setNotes(await getNotes(user));
     setLoading(false);
   }, [user]);
 
@@ -77,14 +78,13 @@ export function NotesScreen() {
 
     setSaving(true);
     try {
-      const userId = await ensureUserRow(user);
       if (editor.id) {
-        await updateNote(editor.id, title, editor.content.trim());
+        await updateNote(user, editor.id, title, editor.content.trim());
       } else {
-        await createNote(userId, title, editor.content.trim());
+        await createNote(user, title, editor.content.trim());
       }
       setEditor(null);
-      setNotes(await getNotes(userId));
+      setNotes(await getNotes(user));
     } finally {
       setSaving(false);
     }
@@ -95,10 +95,9 @@ export function NotesScreen() {
 
     setSaving(true);
     try {
-      await deleteNote(editor.id);
+      await deleteNote(user, editor.id);
       setEditor(null);
-      const userId = await ensureUserRow(user);
-      setNotes(await getNotes(userId));
+      setNotes(await getNotes(user));
     } finally {
       setSaving(false);
     }

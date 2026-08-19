@@ -1,5 +1,6 @@
 import "./global.css";
 import React from "react";
+import { ActivityIndicator, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { NavigationContainer } from "@react-navigation/native";
@@ -12,7 +13,9 @@ import { JournalScreen } from "./src/screens/JournalScreen";
 import { ChatsScreen } from "./src/screens/ChatsScreen";
 import { EventsScreen } from "./src/screens/EventsScreen";
 import { ScheduleScreen } from "./src/screens/ScheduleScreen";
+import { AuthScreen } from "./src/screens/AuthScreen";
 import { MenuProvider } from "./src/navigation/AppMenu";
+import { useAuth } from "./src/hooks/useAuth";
 import { RootStackParamList, TabParamList } from "./src/navigation/types";
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -77,25 +80,58 @@ function MainTabs() {
   );
 }
 
+function MainNavigator() {
+  return (
+    <Stack.Navigator
+      initialRouteName="MainTabs"
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: "#f9fafb" },
+      }}
+    >
+      <Stack.Screen name="MainTabs" component={MainTabs} />
+      <Stack.Screen name="Events" component={EventsScreen} />
+      <Stack.Screen name="Schedule" component={ScheduleScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function Root() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-gray-50">
+        <ActivityIndicator size="large" color="#2563eb" />
+      </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <>
+        <AuthScreen />
+        <StatusBar style="dark" />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <MainNavigator />
+      <StatusBar style="light" />
+    </>
+  );
+}
+
 export default function App() {
   return (
     <SafeAreaProvider>
       <NavigationContainer>
         <MenuProvider>
-          <Stack.Navigator
-            initialRouteName="MainTabs"
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: "#f9fafb" },
-            }}
-          >
-            <Stack.Screen name="MainTabs" component={MainTabs} />
-            <Stack.Screen name="Events" component={EventsScreen} />
-            <Stack.Screen name="Schedule" component={ScheduleScreen} />
-          </Stack.Navigator>
+          <Root />
         </MenuProvider>
       </NavigationContainer>
-      <StatusBar style="light" />
     </SafeAreaProvider>
   );
 }

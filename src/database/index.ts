@@ -22,7 +22,7 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase) {
 
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
-      email TEXT UNIQUE NOT NULL,
+      email TEXT UNIQUE,
       displayName TEXT,
       photoURL TEXT,
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -97,6 +97,39 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase) {
     CREATE INDEX IF NOT EXISTS idx_journal_user ON journal_entries(userId);
     CREATE INDEX IF NOT EXISTS idx_messages_chat ON messages(chatId);
   `);
+
+  await migrate(database);
+}
+
+// Schema migrations for databases created by older versions of the app.
+async function migrate(database: SQLite.SQLiteDatabase) {
+  // v1 -> v2: users.email was NOT NULL, which broke the signed-out "local"
+  // user row (INSERT OR IGNORE silently skipped the NULL email).
+  const userColumns = await database.getAllAsync<{ name: string; notnull: number }>(
+    "PRAGMA table_info(users)"
+  );
+  const emailColumn = userColumns.find((column) => column.name === "email");
+
+  if (emailColumn && emailColumn.notnull === 1) {
+    await database.execAsync(`
+      PRAGMA foreign_keys = OFF;
+      BEGIN;
+      CREATE TABLE users_new (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE,
+        displayName TEXT,
+        photoURL TEXT,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      INSERT INTO users_new (id, email, displayName, photoURL, createdAt, updatedAt)
+        SELECT id, email, displayName, photoURL, createdAt, updatedAt FROM users;
+      DROP TABLE users;
+      ALTER TABLE users_new RENAME TO users;
+      COMMIT;
+      PRAGMA foreign_keys = ON;
+    `);
+  }
 }
 
 // Helper functions for common database operations

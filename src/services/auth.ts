@@ -1,4 +1,4 @@
-import { User } from "@supabase/supabase-js";
+import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "../../config/supabase";
 
 export interface AuthUser {
@@ -19,12 +19,15 @@ function mapUser(user: User): AuthUser {
   };
 }
 
-// Sign up with email and password
+// Sign up with email and password.
+// Returns the created user plus whether a session was started immediately.
+// When email confirmation is enabled on the Supabase project, `session` is
+// null and the user must verify their inbox before signing in.
 export async function signUp(
   email: string,
   password: string,
   displayName?: string
-): Promise<AuthUser> {
+): Promise<{ user: AuthUser; session: Session | null }> {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -34,7 +37,7 @@ export async function signUp(
   if (error) throw error;
   if (!data.user) throw new Error("Sign up failed. Please try again.");
 
-  return mapUser(data.user);
+  return { user: mapUser(data.user), session: data.session };
 }
 
 // Sign in with email and password
