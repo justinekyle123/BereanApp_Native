@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "berean-ag",
+    "name": "Berean AG",
     "slug": "berean-ag",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -19,7 +19,8 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
     }
   }
 }
