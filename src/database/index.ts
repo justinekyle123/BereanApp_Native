@@ -46,6 +46,56 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase) {
       value TEXT,
       updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS journal_entries (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      title TEXT,
+      content TEXT NOT NULL,
+      mood TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS chats (
+      id TEXT PRIMARY KEY,
+      name TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS chat_members (
+      chatId TEXT NOT NULL,
+      userId TEXT NOT NULL,
+      joinedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (chatId, userId),
+      FOREIGN KEY (chatId) REFERENCES chats(id) ON DELETE CASCADE,
+      FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS messages (
+      id TEXT PRIMARY KEY,
+      chatId TEXT NOT NULL,
+      userId TEXT NOT NULL,
+      content TEXT NOT NULL,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (chatId) REFERENCES chats(id) ON DELETE CASCADE,
+      FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS events (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      location TEXT,
+      startsAt DATETIME,
+      endsAt DATETIME,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_notes_user ON notes(userId);
+    CREATE INDEX IF NOT EXISTS idx_journal_user ON journal_entries(userId);
+    CREATE INDEX IF NOT EXISTS idx_messages_chat ON messages(chatId);
   `);
 }
 

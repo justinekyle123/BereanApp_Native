@@ -10,13 +10,13 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { CompositeNavigationProp, useNavigation } from "@react-navigation/native";
+import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../hooks/useAuth";
-import { logout } from "../services/auth";
 import { UPCOMING_EVENTS } from "../data/events";
-import { RootStackParamList } from "../navigation/types";
+import { RootStackParamList, TabParamList } from "../navigation/types";
+import { TopBar } from "../components/TopBar";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -119,18 +119,14 @@ function FadeIn({ delay = 0, children }: { delay?: number; children: React.React
 
 // ---------- Screen ----------
 
+type HomeNavigation = CompositeNavigationProp<
+  BottomTabNavigationProp<TabParamList, "Home">,
+  NativeStackNavigationProp<RootStackParamList>
+>;
+
 export function HomeScreen() {
   const { user, loading } = useAuth();
-  const insets = useSafeAreaInsets();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      Alert.alert("Error", "Failed to logout");
-    }
-  };
+  const navigation = useNavigation<HomeNavigation>();
 
   const handleQuickAction = (id: string) => {
     switch (id) {
@@ -165,6 +161,7 @@ export function HomeScreen() {
 
   return (
     <View className="flex-1 bg-gray-50">
+      <TopBar />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40 }}
@@ -174,25 +171,8 @@ export function HomeScreen() {
           colors={["#172554", "#1e40af", "#2563eb"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={{ paddingTop: insets.top + 16 }}
           className="px-5 pb-16"
         >
-          <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center gap-2">
-              <Ionicons name="library-outline" size={18} color="rgba(255,255,255,0.9)" />
-              <Text className="text-xs font-semibold uppercase tracking-[0.2em] text-white/80">
-                Berean AG
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={handleLogout}
-              activeOpacity={0.7}
-              className="rounded-full bg-white/15 p-2.5"
-            >
-              <Ionicons name="log-out-outline" size={18} color="#ffffff" />
-            </TouchableOpacity>
-          </View>
-
           <View className="mt-8 flex-row items-center">
             <View className="flex-1">
               <Text className="text-3xl font-bold text-white/90">{getGreeting()}</Text>

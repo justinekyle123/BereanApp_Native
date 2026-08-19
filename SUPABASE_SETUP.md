@@ -87,17 +87,18 @@ If `error` is not `null`:
 
 ### Create tables
 
-Use the **SQL Editor** in the dashboard to create tables. For example:
+The repo ships a ready-to-run schema at `supabase/migrations/20260819000001_init.sql`. It creates everything the app needs:
 
-```sql
-create table if not exists public.profiles (
-  id uuid references auth.users on delete cascade primary key,
-  email text,
-  display_name text,
-  updated_at timestamptz default now()
-);
+- `profiles` — one row per auth user (auto-created on signup via a trigger)
+- `notes`, `journal_entries` — user-owned content
+- `chats`, `chat_members`, `messages` — conversations
+- `events`, `settings` — public data
+- **Row Level Security** policies for every table, plus `updated_at` triggers and sample events
 
-alter table public.profiles enable row level security;
+Apply it by opening **SQL Editor** in the dashboard and pasting the file's contents, or with the Supabase CLI:
+
+```bash
+supabase db push
 ```
 
 ### Enable auth providers
