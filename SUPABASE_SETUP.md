@@ -92,6 +92,7 @@ The repo ships a ready-to-run schema at `supabase/migrations/20260819000001_init
 - `profiles` — one row per auth user (auto-created on signup via a trigger)
 - `notes`, `journal_entries` — user-owned content
 - `chats`, `chat_members`, `messages` — conversations
+- `announcements` — the home feed (seeded with sample posts)
 - `events`, `settings` — public data
 - **Row Level Security** policies for every table, plus `updated_at` triggers and sample events
 

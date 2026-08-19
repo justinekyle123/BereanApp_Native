@@ -11,7 +11,14 @@ export function useAuth() {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    // Safety net: never leave the app stuck on the loading screen,
+    // even if the auth listener never fires for some reason.
+    const timeout = setTimeout(() => setLoading(false), 3000);
+
+    return () => {
+      unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   return { user, loading };

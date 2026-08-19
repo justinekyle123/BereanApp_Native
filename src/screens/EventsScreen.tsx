@@ -35,7 +35,7 @@ export function EventsScreen() {
               style={cardShadow}
               className="mb-4 flex-row items-center rounded-2xl bg-white p-4"
             >
-              <View className="h-12 w-12 items-center justify-center rounded-xl bg-blue-600">
+              <View className="h-12 w-12 items-center justify-center rounded-xl bg-teal-600">
                 <Text className="text-[10px] font-bold text-white">{event.day}</Text>
                 <Text className="mt-0.5 text-[9px] font-semibold text-white/80">
                   {event.date}

@@ -71,19 +71,35 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   return data.user ? mapUser(data.user) : null;
 }
 
-// Listen to auth state changes
+// Listen to auth state changes.
+// Guaranteed to fire at least once (even if Supabase is unreachable) so the
+// UI never gets stuck on a loading screen.
 export function onAuthStateChanged(callback: (user: AuthUser | null) => void): () => void {
+  let active = true;
+  const emit = (user: AuthUser | null) => {
+    if (active) callback(user);
+  };
+
   // Fire immediately with the current session so loading resolves right away
-  supabase.auth.getSession().then(({ data }) => {
-    callback(data.session ? mapUser(data.session.user) : null);
-  });
+  supabase.auth
+    .getSession()
+    .then(({ data }) => {
+      emit(data.session ? mapUser(data.session.user) : null);
+    })
+    .catch(() => {
+      // Storage/network hiccup — treat as signed out rather than hanging.
+      emit(null);
+    });
 
   // Then subscribe to subsequent changes (sign in, sign out, token refresh)
   const {
     data: { subscription },
   } = supabase.auth.onAuthStateChange((_event, session) => {
-    callback(session ? mapUser(session.user) : null);
+    emit(session ? mapUser(session.user) : null);
   });
 
-  return () => subscription.unsubscribe();
+  return () => {
+    active = false;
+    subscription.unsubscribe();
+  };
 }

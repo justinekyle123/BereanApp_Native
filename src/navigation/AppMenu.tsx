@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Image,
   Modal,
   Text,
   TouchableOpacity,
@@ -33,7 +34,7 @@ const MENU_SECTIONS: Array<{ label: string; items: MenuItem[] }> = [
     label: "Main",
     items: [
       { key: "home", label: "Home", icon: "home-outline", type: "tab", screen: "Home" },
-      { key: "notes", label: "Notes", icon: "document-text-outline", type: "tab", screen: "Notes" },
+      { key: "announcements", label: "Announcements", icon: "megaphone-outline", type: "tab", screen: "Announcements" },
       { key: "journal", label: "Journal", icon: "journal-outline", type: "tab", screen: "Journal" },
       { key: "chats", label: "Chats", icon: "chatbubbles-outline", type: "tab", screen: "Chats" },
     ],
@@ -155,8 +156,12 @@ function AppMenu({ navigation, visible, onClose }: AppMenuProps) {
           <View className="border-b border-gray-100 px-5 pb-4 pt-6">
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center gap-2">
-                <View className="h-9 w-9 items-center justify-center rounded-xl bg-blue-600">
-                  <Ionicons name="library" size={20} color="#ffffff" />
+                <View className="h-9 w-9 overflow-hidden rounded-xl border border-gray-200 bg-white">
+                  <Image
+                    source={require("../../assets/berean.jpg")}
+                    className="h-full w-full"
+                    resizeMode="contain"
+                  />
                 </View>
                 <Text className="text-lg font-bold text-gray-900">Berean AG</Text>
               </View>
@@ -171,7 +176,7 @@ function AppMenu({ navigation, visible, onClose }: AppMenuProps) {
 
             {/* Signed-in user */}
             <View className="mt-4 flex-row items-center gap-3 rounded-xl bg-gray-50 p-3">
-              <View className="h-10 w-10 items-center justify-center rounded-full bg-blue-600">
+              <View className="h-10 w-10 items-center justify-center rounded-full bg-teal-600">
                 <Text className="text-sm font-bold text-white">
                   {getInitials(user?.displayName, user?.email)}
                 </Text>

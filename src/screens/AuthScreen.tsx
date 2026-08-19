@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -18,12 +19,20 @@ type Mode = "signIn" | "signUp";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const cardShadow = {
-  shadowColor: "#0f172a",
-  shadowOffset: { width: 0, height: 8 },
-  shadowOpacity: 0.25,
-  shadowRadius: 20,
-  elevation: 8,
+const logoShadow = {
+  shadowColor: "#042f2e",
+  shadowOffset: { width: 0, height: 6 },
+  shadowOpacity: 0.35,
+  shadowRadius: 14,
+  elevation: 6,
+};
+
+const buttonShadow = {
+  shadowColor: "#042f2e",
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.3,
+  shadowRadius: 10,
+  elevation: 5,
 };
 
 function friendlyAuthError(message: string): string {
@@ -35,7 +44,7 @@ function friendlyAuthError(message: string): string {
 }
 
 const inputBase =
-  "flex-row items-center rounded-xl border border-gray-200 bg-gray-50 px-4";
+  "flex-row items-center rounded-xl border border-white/20 bg-white/10 px-4";
 
 export function AuthScreen() {
   const insets = useSafeAreaInsets();
@@ -117,15 +126,16 @@ export function AuthScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={["#0f2557", "#1e3a8a", "#1d4ed8"]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={{ paddingTop: insets.top }}
-      className="flex-1"
-    >
+    <View className="flex-1 bg-teal-900">
+      <LinearGradient
+        colors={["#042f2e", "#134e4a", "#0f766e"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        className="absolute inset-0"
+      />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ paddingTop: insets.top }}
         className="flex-1"
       >
         <ScrollView
@@ -135,8 +145,15 @@ export function AuthScreen() {
         >
           {/* Brand */}
           <View className="items-center">
-            <View className="h-20 w-20 items-center justify-center rounded-3xl border border-white/20 bg-white/15">
-              <Ionicons name="library" size={38} color="#ffffff" />
+            <View
+              style={logoShadow}
+              className="h-20 w-20 overflow-hidden rounded-3xl border border-white/30 bg-white"
+            >
+              <Image
+                source={require("../../assets/berean.jpg")}
+                className="h-full w-full"
+                resizeMode="contain"
+              />
             </View>
             <Text className="mt-4 text-3xl font-bold text-white">Berean AG</Text>
             <Text className="mt-1.5 text-sm text-white/70">
@@ -144,10 +161,10 @@ export function AuthScreen() {
             </Text>
           </View>
 
-          {/* Card */}
-          <View style={cardShadow} className="mt-8 rounded-3xl bg-white p-6">
+          {/* Form (glass, no card) */}
+          <View className="mt-8">
             {/* Mode toggle */}
-            <View className="flex-row rounded-xl bg-gray-100 p-1">
+            <View className="flex-row rounded-xl bg-white/10 p-1">
               {(["signIn", "signUp"] as const).map((m) => {
                 const active = mode === m;
                 return (
@@ -156,11 +173,10 @@ export function AuthScreen() {
                     onPress={() => switchMode(m)}
                     activeOpacity={0.7}
                     className={`flex-1 rounded-lg py-2.5 ${active ? "bg-white" : ""}`}
-                    style={active ? cardShadow : undefined}
                   >
                     <Text
                       className={`text-center text-sm font-semibold ${
-                        active ? "text-blue-600" : "text-gray-500"
+                        active ? "text-teal-700" : "text-white/70"
                       }`}
                     >
                       {m === "signIn" ? "Sign In" : "Create Account"}
@@ -172,46 +188,46 @@ export function AuthScreen() {
 
             {mode === "signUp" && (
               <View className={`${inputBase} mt-5`}>
-                <Ionicons name="person-outline" size={18} color="#9ca3af" />
+                <Ionicons name="person-outline" size={18} color="rgba(255,255,255,0.6)" />
                 <TextInput
                   value={displayName}
                   onChangeText={setDisplayName}
                   placeholder="Full name"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor="rgba(255,255,255,0.5)"
                   autoCapitalize="words"
                   textContentType="name"
-                  className="ml-3 flex-1 py-3.5 text-[15px] text-gray-900"
+                  className="ml-3 flex-1 py-3.5 text-[15px] text-white"
                 />
               </View>
             )}
 
             <View className={`${inputBase} mt-5`}>
-              <Ionicons name="mail-outline" size={18} color="#9ca3af" />
+              <Ionicons name="mail-outline" size={18} color="rgba(255,255,255,0.6)" />
               <TextInput
                 value={email}
                 onChangeText={setEmail}
                 placeholder="Email"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor="rgba(255,255,255,0.5)"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
                 textContentType="emailAddress"
-                className="ml-3 flex-1 py-3.5 text-[15px] text-gray-900"
+                className="ml-3 flex-1 py-3.5 text-[15px] text-white"
               />
             </View>
 
             <View className={`${inputBase} mt-3`}>
-              <Ionicons name="lock-closed-outline" size={18} color="#9ca3af" />
+              <Ionicons name="lock-closed-outline" size={18} color="rgba(255,255,255,0.6)" />
               <TextInput
                 value={password}
                 onChangeText={setPassword}
                 placeholder="Password"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor="rgba(255,255,255,0.5)"
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 autoCorrect={false}
                 textContentType={mode === "signUp" ? "newPassword" : "password"}
-                className="ml-3 flex-1 py-3.5 text-[15px] text-gray-900"
+                className="ml-3 flex-1 py-3.5 text-[15px] text-white"
               />
               <TouchableOpacity
                 onPress={() => setShowPassword((visible) => !visible)}
@@ -221,7 +237,7 @@ export function AuthScreen() {
                 <Ionicons
                   name={showPassword ? "eye-off-outline" : "eye-outline"}
                   size={20}
-                  color="#9ca3af"
+                  color="rgba(255,255,255,0.6)"
                 />
               </TouchableOpacity>
             </View>
@@ -232,38 +248,39 @@ export function AuthScreen() {
                 activeOpacity={0.7}
                 className="mt-3 self-end"
               >
-                <Text className="text-sm font-semibold text-blue-600">
+                <Text className="text-sm font-semibold text-white/80">
                   {sendingReset ? "Sending link..." : "Forgot password?"}
                 </Text>
               </TouchableOpacity>
             )}
 
-            {error ? <Text className="mt-3 text-sm text-red-600">{error}</Text> : null}
-            {message ? <Text className="mt-3 text-sm text-green-600">{message}</Text> : null}
+            {error ? <Text className="mt-3 text-sm text-red-300">{error}</Text> : null}
+            {message ? <Text className="mt-3 text-sm text-green-300">{message}</Text> : null}
 
             <TouchableOpacity
               onPress={handleSubmit}
               disabled={loading}
-              activeOpacity={0.8}
-              className="mt-5 items-center justify-center rounded-xl bg-blue-600 py-4"
+              activeOpacity={0.85}
+              style={buttonShadow}
+              className="mt-5 items-center justify-center rounded-xl bg-white py-4"
             >
               {loading ? (
-                <ActivityIndicator color="#ffffff" />
+                <ActivityIndicator color="#0f766e" />
               ) : (
-                <Text className="text-[15px] font-semibold text-white">
+                <Text className="text-[15px] font-semibold text-teal-700">
                   {mode === "signIn" ? "Sign In" : "Create Account"}
                 </Text>
               )}
             </TouchableOpacity>
 
             <View className="mt-5 flex-row items-center gap-3">
-              <View className="h-px flex-1 bg-gray-200" />
-              <Text className="text-xs text-gray-400">Secured by Supabase</Text>
-              <View className="h-px flex-1 bg-gray-200" />
+              <View className="h-px flex-1 bg-white/30" />
+              <Text className="text-xs text-white/50">Secured by Supabase</Text>
+              <View className="h-px flex-1 bg-white/30" />
             </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </View>
   );
 }

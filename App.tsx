@@ -8,10 +8,11 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { HomeScreen } from "./src/screens/HomeScreen";
-import { NotesScreen } from "./src/screens/NotesScreen";
+import { AnnouncementsScreen } from "./src/screens/AnnouncementsScreen";
 import { JournalScreen } from "./src/screens/JournalScreen";
 import { ChatsScreen } from "./src/screens/ChatsScreen";
 import { EventsScreen } from "./src/screens/EventsScreen";
+import { EventDetailsScreen } from "./src/screens/EventDetailsScreen";
 import { ScheduleScreen } from "./src/screens/ScheduleScreen";
 import { AuthScreen } from "./src/screens/AuthScreen";
 import { MenuProvider } from "./src/navigation/AppMenu";
@@ -38,7 +39,7 @@ function MainTabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#2563eb",
+        tabBarActiveTintColor: "#0d9488",
         tabBarInactiveTintColor: "#9ca3af",
         tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
         tabBarStyle: { backgroundColor: "#ffffff", borderTopColor: "#e5e7eb" },
@@ -53,11 +54,11 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="Notes"
-        component={NotesScreen}
+        name="Announcements"
+        component={AnnouncementsScreen}
         options={{
-          tabBarLabel: "Notes",
-          tabBarIcon: tabIcon("document-text", "document-text-outline"),
+          tabBarLabel: "Announcements",
+          tabBarIcon: tabIcon("megaphone", "megaphone-outline"),
         }}
       />
       <Tab.Screen
@@ -92,6 +93,7 @@ function MainNavigator() {
       <Stack.Screen name="MainTabs" component={MainTabs} />
       <Stack.Screen name="Events" component={EventsScreen} />
       <Stack.Screen name="Schedule" component={ScheduleScreen} />
+      <Stack.Screen name="EventDetails" component={EventDetailsScreen} />
     </Stack.Navigator>
   );
 }
@@ -102,7 +104,7 @@ function Root() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-gray-50">
-        <ActivityIndicator size="large" color="#2563eb" />
+        <ActivityIndicator size="large" color="#0d9488" />
       </View>
     );
   }

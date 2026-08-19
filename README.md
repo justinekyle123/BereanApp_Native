@@ -187,7 +187,7 @@ Style components using Tailwind CSS classes:
 
 ```tsx
 <View className="flex-1 bg-white p-4">
-  <Text className="text-2xl font-bold text-blue-500">
+  <Text className="text-2xl font-bold text-teal-500">
     Hello World
   </Text>
 </View>

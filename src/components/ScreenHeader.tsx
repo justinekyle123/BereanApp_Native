@@ -16,7 +16,7 @@ export function ScreenHeader({ title, subtitle }: ScreenHeaderProps) {
 
   return (
     <LinearGradient
-      colors={["#172554", "#1e40af", "#2563eb"]}
+      colors={["#134e4a", "#0f766e", "#14b8a6"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={{ paddingTop: insets.top + 12 }}

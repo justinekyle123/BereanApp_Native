@@ -1,5 +1,5 @@
 import React from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Image, Text, TouchableOpacity, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { NavigationProp, ParamListBase, useNavigation } from "@react-navigation/native";
@@ -13,7 +13,7 @@ export function TopBar() {
 
   return (
     <LinearGradient
-      colors={["#172554", "#1e40af", "#2563eb"]}
+      colors={["#134e4a", "#0f766e", "#14b8a6"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={{ paddingTop: insets.top + 8 }}
@@ -28,8 +28,12 @@ export function TopBar() {
         </TouchableOpacity>
 
         <View className="flex-row items-center gap-2">
-          <View className="h-8 w-8 items-center justify-center rounded-lg bg-white/20">
-            <Ionicons name="library" size={18} color="#ffffff" />
+          <View className="h-9 w-9 overflow-hidden rounded-lg border border-white/30 bg-white">
+            <Image
+              source={require("../../assets/berean.jpg")}
+              className="h-full w-full"
+              resizeMode="contain"
+            />
           </View>
           <Text className="text-base font-bold text-white">Berean AG</Text>
         </View>
