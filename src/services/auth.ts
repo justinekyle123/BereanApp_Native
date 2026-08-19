@@ -1,11 +1,5 @@
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  updateProfile,
-  User,
-} from "firebase/auth";
-import { auth } from "../../config/firebase";
+import { User } from "@supabase/supabase-js";
+import { supabase } from "../../config/supabase";
 
 export interface AuthUser {
   uid: string;
@@ -14,13 +8,14 @@ export interface AuthUser {
   photoURL: string | null;
 }
 
-// Convert Firebase User to our AuthUser type
+// Convert a Supabase User to our AuthUser type
 function mapUser(user: User): AuthUser {
+  const metadata = user.user_metadata ?? {};
   return {
-    uid: user.uid,
-    email: user.email,
-    displayName: user.displayName,
-    photoURL: user.photoURL,
+    uid: user.id,
+    email: user.email ?? null,
+    displayName: metadata.display_name ?? null,
+    photoURL: metadata.avatar_url ?? null,
   };
 }
 
@@ -30,35 +25,56 @@ export async function signUp(
   password: string,
   displayName?: string
 ): Promise<AuthUser> {
-  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: displayName ? { data: { display_name: displayName } } : undefined,
+  });
 
-  if (displayName) {
-    await updateProfile(userCredential.user, { displayName });
-  }
+  if (error) throw error;
+  if (!data.user) throw new Error("Sign up failed. Please try again.");
 
-  return mapUser(userCredential.user);
+  return mapUser(data.user);
 }
 
 // Sign in with email and password
 export async function signIn(email: string, password: string): Promise<AuthUser> {
-  const userCredential = await signInWithEmailAndPassword(auth, email, password);
-  return mapUser(userCredential.user);
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) throw error;
+  if (!data.user) throw new Error("Sign in failed. Please try again.");
+
+  return mapUser(data.user);
 }
 
 // Sign out
 export async function logout(): Promise<void> {
-  await signOut(auth);
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
 }
 
 // Get current user
-export function getCurrentUser(): AuthUser | null {
-  const user = auth.currentUser;
-  return user ? mapUser(user) : null;
+export async function getCurrentUser(): Promise<AuthUser | null> {
+  const { data } = await supabase.auth.getUser();
+  return data.user ? mapUser(data.user) : null;
 }
 
 // Listen to auth state changes
 export function onAuthStateChanged(callback: (user: AuthUser | null) => void): () => void {
-  return auth.onAuthStateChanged((user) => {
-    callback(user ? mapUser(user) : null);
+  // Fire immediately with the current session so loading resolves right away
+  supabase.auth.getSession().then(({ data }) => {
+    callback(data.session ? mapUser(data.session.user) : null);
   });
+
+  // Then subscribe to subsequent changes (sign in, sign out, token refresh)
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange((_event, session) => {
+    callback(session ? mapUser(session.user) : null);
+  });
+
+  return () => subscription.unsubscribe();
 }

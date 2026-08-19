@@ -7,6 +7,7 @@ A React Native mobile application built with Expo, NativeWind, TypeScript, SQLit
 - **NativeWind**: Tailwind CSS styling for React Native
 - **SQLite**: Local database for offline data storage
 - **Firebase**: Backend services for authentication, cloud database, and storage
+- **Supabase**: Open-source Firebase alternative (Postgres database, auth, storage)
 - **TypeScript**: Type-safe development experience
 
 ## Tech Stack
@@ -15,7 +16,7 @@ A React Native mobile application built with Expo, NativeWind, TypeScript, SQLit
 - **Styling**: NativeWind (Tailwind CSS)
 - **Language**: TypeScript
 - **Local Database**: expo-sqlite
-- **Backend**: Firebase (Auth, Firestore, Storage)
+- **Backend**: Firebase (Auth, Firestore, Storage) and Supabase (Postgres, Auth, Storage)
 
 ## Getting Started
 
@@ -97,6 +98,61 @@ berean-ag/
      appId: "your-app-id",
    };
    ```
+
+## Supabase Setup
+
+> Full step-by-step guide: [SUPABASE_SETUP.md](./SUPABASE_SETUP.md)
+
+### 1. Create a Supabase project
+
+1. Go to [Supabase Dashboard](https://supabase.com/dashboard) and sign up or sign in.
+2. Click **New project**.
+3. Choose an organization, give the project a name (e.g. `berean-ag`), set a database password, and pick a region close to your users.
+4. Click **Create new project** and wait for it to finish provisioning (a few minutes).
+5. (Optional) Enable additional auth providers under **Authentication → Sign In / Up** — Email/Password is enabled by default.
+
+### 2. Get your project credentials
+
+1. In the dashboard, go to **Project Settings → API**.
+2. Copy two values:
+   - **Project URL** — e.g. `https://abcdefghijklm.supabase.co`
+   - **Publishable key** — labeled *publishable key* in new projects, or *anon public* key in older ones (they are the same JWT)
+
+> These keys are designed to be safe in client apps (they're protected by Row Level Security). Never use the **service role** key in the app — it bypasses RLS and must stay secret.
+
+### 3. Connect the app
+
+1. Create your env file from the example:
+   ```bash
+   cp .env.example .env
+   ```
+2. Fill in the values:
+   ```
+   EXPO_PUBLIC_SUPABASE_URL=https://abcdefghijklm.supabase.co
+   EXPO_PUBLIC_SUPABASE_KEY=your-publishable-key
+   ```
+3. Restart the dev server (`npm start`). Expo inlines `EXPO_PUBLIC_*` variables at build time, so you must restart after changing them.
+
+That's it — the client is set up in `config/supabase.ts`. It persists the auth session with AsyncStorage and automatically keeps it refreshed while the app is in the foreground.
+
+### 4. Verify the connection
+
+Run a query anywhere in the app (or temporarily in `App.tsx`):
+
+```typescript
+import { supabase } from "./config/supabase";
+
+async function testConnection() {
+  const { data, error } = await supabase.from("profiles").select("*").limit(1);
+  if (error) {
+    console.error("Supabase connection error:", error.message);
+  } else {
+    console.log("Supabase connected successfully", data);
+  }
+}
+```
+
+If `error` is not null, double-check that your `.env` values match the ones in **Project Settings → API** and that you restarted the dev server.
 
 ## SQLite Database
 
